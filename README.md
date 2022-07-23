@@ -15,7 +15,7 @@ Additionally there are 3 additional options *-r value* , *-g value* and *-b valu
 Once the jobs is finished it will print a massage show it completed.
 ```
 $ ./color-filter -h
-usage: color-filter [-h] [-r RED] [-g GREEN] [-b BLUE] -s SIZE -f FILE
+usage: color-filter filter [-h] [-r RED] [-g GREEN] [-b BLUE] -s SIZE -f FILE
 
 Color Filter - Apply color filter to ppm image
   -h, --help                show this help message and exit
