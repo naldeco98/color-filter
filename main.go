@@ -10,15 +10,16 @@ import (
 )
 
 type Helper struct {
-	Red, Green, Blue float64
-	Size             int
-	File             string
+	Red, Green, Blue   float64
+	Size               int
+	FilePath, FileName string
 }
 
 type ImageDescriptor struct {
 	Version, Comment     string
 	Width, Length, Depth int
 	Head                 int
+	Filter               Helper
 }
 
 func main() {
@@ -43,20 +44,33 @@ func main() {
 	default:
 		log.Fatalf("expected [filter] subcommand, got [%s]", os.Args[1])
 	}
+	sep := strings.Split(*filePath, ".ppm")
+	if len(sep) != 2 {
+		log.Fatal("fail finding .ppm extension")
+	}
 
-	_ = Helper{*redValue, *greenValue, *blueValue, *sizeValue, *filePath}
+	helper := Helper{*redValue, *greenValue, *blueValue, *sizeValue, *filePath, sep[0]}
 
 	read, err := os.ReadFile(*filePath)
 	if err != nil {
 		log.Fatalf("fail reading file: %v", err)
 	}
+
 	var imageDesciptor ImageDescriptor
 	err = DecodeFile(&read, &imageDesciptor)
 	if err != nil {
 		log.Fatalf("fail decoding file: %v", err)
 	}
-	fmt.Printf("%+v", imageDesciptor)
+	imageDesciptor.Filter = helper
+	read2 := make([]byte, cap(read))
+	read3 := make([]byte, cap(read))
+	copy(read2, read)
+	copy(read3, read)
+	BuildWorker("green", 1, imageDesciptor, read)
+	BuildWorker("blue", 1, imageDesciptor, read2)
+	BuildWorker("red", 1, imageDesciptor, read3)
 
+	// time.Sleep(time.Second * 10)
 }
 
 func handleCmd(cmd *flag.FlagSet, red, green, blue *float64, size *int, file *string) {
@@ -65,6 +79,7 @@ func handleCmd(cmd *flag.FlagSet, red, green, blue *float64, size *int, file *st
 		log.Fatalf("file argument is required")
 	}
 }
+
 func DecodeFile(bytes *[]byte, imageDesciptor *ImageDescriptor) error {
 	var head int
 	// Capture version
@@ -116,4 +131,28 @@ func DecodeFile(bytes *[]byte, imageDesciptor *ImageDescriptor) error {
 	imageDesciptor.Depth = d
 	imageDesciptor.Head = head
 	return nil
+}
+
+func BuildWorker(color string, intense float64, imageD ImageDescriptor, bytes []byte) error {
+	cut := map[string]int{
+		"red":   0,
+		"green": 1,
+		"blue":  2,
+	}
+	head := bytes[:imageD.Head]
+	body := bytes[imageD.Head:]
+	name := fmt.Sprintf("%s_%s.ppm", imageD.Filter.FileName, color)
+	for i, b := range body {
+		var newB byte
+		if i%3 == cut[color] {
+			value := int(float64(b) * intense)
+			if value >= 255 {
+				value = 255
+			}
+			newB = byte(value)
+		}
+		body[i] = newB
+	}
+	head = append(head, body...)
+	return os.WriteFile(name, head, 0677)
 }
