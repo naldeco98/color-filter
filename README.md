@@ -14,29 +14,40 @@ Additionally there are 3 additional options *-r value* , *-g value* and *-b valu
 
 Once the jobs is finished it will print a massage show it completed.
 ```
-$ ./color-filter -h
-usage: color-filter filter [-h] [-r RED] [-g GREEN] [-b BLUE] -s SIZE -f FILE
-
-Color Filter - Apply color filter to ppm image
-  -h, --help                show this help message and exit
-  -r RED, --red RED         Red scale
-  -g GREEN, --green GREEN   Green scale
-  -b BLUE, --blue BLUE      Blue scale
-  -s SIZE, --size SIZE      Reading size
-  -f FILE, --file FILE      File to process
+$ ./color-filter filter
+Usage of filter:
+  -blue float
+        Blue scale (default 1)
+  -file string
+        File to process
+  -green float
+        Green scale (default 1)
+  -red float
+        Red scale (default 1)
 
 Usage Example:
-$ ./color-filter -s 1024 -f dog.ppm -r 2 -g 0 -b 0.5
+$ go run color-filter.go filter --file images/dog.ppm --red 2 --green 0.25 --blue 0.5
 
-Succesfuly filter
+Successfully filter
 
 $ ls *ppm
 dog.ppm
-b_dog.ppm
-g_dog.ppm
-r_dog.ppm
+dog_green.ppm
+dog_blue.ppm
+dog_red.ppm
 
 ```
+
+### Example results:
+Original image
+
+![dog.ppm](docs/dog.jpg)
+
+Filter result
+
+![dog.ppm](docs/dog_blue.jpg)
+![dog.ppm](docs/dog_red.jpg)
+![dog.ppm](docs/dog_green.jpg)
 
 ### Links:
  - PPM Format implementation: http://netpbm.sourceforge.net/doc/ppm.html
