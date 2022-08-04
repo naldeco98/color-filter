@@ -20,7 +20,6 @@ func main() {
 	redValue := cmd.Float64("red", 1, "Red scale")
 	greenValue := cmd.Float64("green", 1, "Green scale")
 	blueValue := cmd.Float64("blue", 1, "Blue scale")
-	sizeValue := cmd.Int("size", 256, "Reading size")
 	filePath := cmd.String("file", "", "File to process") // Mandatory flag
 
 	if len(os.Args) < 2 {
@@ -29,7 +28,7 @@ func main() {
 
 	switch os.Args[1] {
 	case "filter":
-		handleCmd(cmd, redValue, greenValue, blueValue, sizeValue, filePath)
+		handleCmd(cmd, redValue, greenValue, blueValue, filePath)
 	default:
 		log.Fatalf("expected [filter] subcommand, got [%s]", os.Args[1])
 	}
@@ -56,10 +55,10 @@ func main() {
 	go BuildWorker(offset, "blue", sep[0], *blueValue, read2)
 	go BuildWorker(offset, "red", sep[0], *redValue, read3)
 	wg.Wait()
-	fmt.Println("Job done!")
+	fmt.Println("Successfully filter")
 }
 
-func handleCmd(cmd *flag.FlagSet, red, green, blue *float64, size *int, file *string) {
+func handleCmd(cmd *flag.FlagSet, red, green, blue *float64, file *string) {
 	cmd.Parse(os.Args[2:])
 	if *file == "" {
 		log.Fatalf("file argument is required")
@@ -101,6 +100,7 @@ func GetOffset(bytes []byte) (int, error) {
 	return head, nil
 }
 
+// BuildWorker this is a go routine to write filtred images
 func BuildWorker(offset int, color, path string, intense float64, bytes []byte) {
 	cut := map[string]int{
 		"red":   0,
