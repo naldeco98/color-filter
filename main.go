@@ -5,22 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 )
-
-type Helper struct {
-	Red, Green, Blue   float64
-	Size               int
-	FilePath, FileName string
-}
-
-type ImageDescriptor struct {
-	Version, Comment     string
-	Width, Length, Depth int
-	Head                 int
-	Filter               Helper
-}
 
 func main() {
 
@@ -49,28 +35,24 @@ func main() {
 		log.Fatal("fail finding .ppm extension")
 	}
 
-	helper := Helper{*redValue, *greenValue, *blueValue, *sizeValue, *filePath, sep[0]}
-
 	read, err := os.ReadFile(*filePath)
 	if err != nil {
 		log.Fatalf("fail reading file: %v", err)
 	}
 
-	var imageDesciptor ImageDescriptor
-	err = DecodeFile(&read, &imageDesciptor)
+	offset, err := GetOffset(read)
 	if err != nil {
 		log.Fatalf("fail decoding file: %v", err)
 	}
-	imageDesciptor.Filter = helper
+
 	read2 := make([]byte, cap(read))
 	read3 := make([]byte, cap(read))
 	copy(read2, read)
 	copy(read3, read)
-	BuildWorker("green", 1, imageDesciptor, read)
-	BuildWorker("blue", 1, imageDesciptor, read2)
-	BuildWorker("red", 1, imageDesciptor, read3)
+	BuildWorker(offset, "green", sep[0], *greenValue, read)
+	BuildWorker(offset, "blue", sep[0], *blueValue, read2)
+	BuildWorker(offset, "red", sep[0], *redValue, read3)
 
-	// time.Sleep(time.Second * 10)
 }
 
 func handleCmd(cmd *flag.FlagSet, red, green, blue *float64, size *int, file *string) {
@@ -80,68 +62,50 @@ func handleCmd(cmd *flag.FlagSet, red, green, blue *float64, size *int, file *st
 	}
 }
 
-func DecodeFile(bytes *[]byte, imageDesciptor *ImageDescriptor) error {
+// GetOffset reads fron slice of bytes and return offset value
+func GetOffset(bytes []byte) (int, error) {
 	var head int
 	// Capture version
-	imageDesciptor.Version = string((*bytes)[0:2])
+	if string(bytes[0:2]) != "P6" {
+		return 0, fmt.Errorf("file version not suported")
+	}
 	// Capture Comment
-	if (*bytes)[3] == 0x23 {
-		for i, b := range (*bytes)[3:] {
+	if bytes[3] == 0x23 {
+		for i, b := range bytes[3:] {
 			if b == 0x0A {
 				head = i + 4
 				break
 			}
-			imageDesciptor.Comment += string(b)
 		}
+	} else {
+		head = 3
 	}
 	// Capture width & Length
-	var widthLength string
-	for i, b := range (*bytes)[head:] {
+	for i, b := range bytes[head:] {
 		if b == 0x0A {
 			head += i + 1
 			break
 		}
-		widthLength += string(b)
 	}
-
-	wL := strings.Split(widthLength, " ")
-	w, err := strconv.Atoi(wL[0])
-	if err != nil {
-		return fmt.Errorf("failed getting width value: %s", err.Error())
-	}
-	l, err := strconv.Atoi(wL[1])
-	if err != nil {
-		return fmt.Errorf("failed getting length value: %s", err.Error())
-	}
-	imageDesciptor.Width = w
-	imageDesciptor.Length = l
 	// Capture depth
-	var depth string
-	for i, b := range (*bytes)[head:] {
+	for i, b := range bytes[head:] {
 		if b == 0x0A {
 			head += i + 1
 			break
 		}
-		depth += string(b)
 	}
-	d, err := strconv.Atoi(depth)
-	if err != nil {
-		return fmt.Errorf("failed getting depth value: %s", err.Error())
-	}
-	imageDesciptor.Depth = d
-	imageDesciptor.Head = head
-	return nil
+	return head, nil
 }
 
-func BuildWorker(color string, intense float64, imageD ImageDescriptor, bytes []byte) error {
+func BuildWorker(offset int, color, path string, intense float64, bytes []byte) error {
 	cut := map[string]int{
 		"red":   0,
 		"green": 1,
 		"blue":  2,
 	}
-	head := bytes[:imageD.Head]
-	body := bytes[imageD.Head:]
-	name := fmt.Sprintf("%s_%s.ppm", imageD.Filter.FileName, color)
+	head := bytes[:offset]
+	body := bytes[offset:]
+	name := fmt.Sprintf("%s_%s.ppm", path, color)
 	for i, b := range body {
 		var newB byte
 		if i%3 == cut[color] {
