@@ -6,7 +6,10 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 )
+
+var wg sync.WaitGroup
 
 func main() {
 
@@ -44,15 +47,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("fail decoding file: %v", err)
 	}
-
+	wg.Add(3)
 	read2 := make([]byte, cap(read))
-	read3 := make([]byte, cap(read))
 	copy(read2, read)
+	read3 := make([]byte, cap(read))
 	copy(read3, read)
-	BuildWorker(offset, "green", sep[0], *greenValue, read)
-	BuildWorker(offset, "blue", sep[0], *blueValue, read2)
-	BuildWorker(offset, "red", sep[0], *redValue, read3)
-
+	go BuildWorker(offset, "green", sep[0], *greenValue, read)
+	go BuildWorker(offset, "blue", sep[0], *blueValue, read2)
+	go BuildWorker(offset, "red", sep[0], *redValue, read3)
+	wg.Wait()
+	fmt.Println("Job done!")
 }
 
 func handleCmd(cmd *flag.FlagSet, red, green, blue *float64, size *int, file *string) {
@@ -97,16 +101,14 @@ func GetOffset(bytes []byte) (int, error) {
 	return head, nil
 }
 
-func BuildWorker(offset int, color, path string, intense float64, bytes []byte) error {
+func BuildWorker(offset int, color, path string, intense float64, bytes []byte) {
 	cut := map[string]int{
 		"red":   0,
 		"green": 1,
 		"blue":  2,
 	}
-	head := bytes[:offset]
-	body := bytes[offset:]
 	name := fmt.Sprintf("%s_%s.ppm", path, color)
-	for i, b := range body {
+	for i, b := range bytes[offset:] {
 		var newB byte
 		if i%3 == cut[color] {
 			value := int(float64(b) * intense)
@@ -115,8 +117,11 @@ func BuildWorker(offset int, color, path string, intense float64, bytes []byte) 
 			}
 			newB = byte(value)
 		}
-		body[i] = newB
+		bytes[offset+i] = newB
 	}
-	head = append(head, body...)
-	return os.WriteFile(name, head, 0677)
+	err := os.WriteFile(name, bytes, 0677)
+	if err != nil {
+		log.Fatalf("error creating file: %v", err)
+	}
+	wg.Done()
 }
